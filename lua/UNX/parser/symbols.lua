@@ -37,42 +37,47 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
     end
 
     local function make_item_node(item)
+        local kind = item.kind
+        -- 'impl' accessレベルの場合、種類を 'Implementation' に変更して見た目を分ける
+        if item.access == "impl" then
+            kind = "Implementation"
+        end
+
         local raw = string.format("%s_%s_%d", file_hash, item.name, item.line)
         local unique = safe_node_id(registry:get(raw), render_seen_ids)
         return Tree.Node({
             text = item.name,
             detail = item.detail,
-            kind = item.kind,
+            kind = kind,
             line = item.line,
             file_path = item.file_path,
             id = unique
         })
     end
 
-    -- Fields (Properties)
-    local field_children = {}
+    -- 1. Properties (メンバー)
+    local prop_children = {}
     for _, access in ipairs({"public", "protected", "private", "impl"}) do
         if class_data.fields and class_data.fields[access] then
             for _, f in ipairs(class_data.fields[access]) do
-                table.insert(field_children, make_item_node(f))
+                table.insert(prop_children, make_item_node(f))
             end
         end
     end
-    if #field_children > 0 then
-        -- ★修正: _has_children と loaded を明示
+    if #prop_children > 0 then
+        table.sort(prop_children, function(a, b) return (a.line or 0) < (b.line or 0) end)
         local node = Tree.Node({ 
             text = "Properties", 
             kind = "GroupFields", 
             id = make_group_id("_props"),
             _has_children = true,
             loaded = true
-        }, field_children)
-        
+        }, prop_children)
         if should_expand then node:expand() end
         table.insert(children, node)
     end
 
-    -- Methods (Functions)
+    -- 2. Functions (メソッド定義)
     local func_children = {}
     for _, access in ipairs({"public", "protected", "private"}) do
         if class_data.methods and class_data.methods[access] then
@@ -81,29 +86,8 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
             end
         end
     end
-    -- Implementations (.cpp)
-    if class_data.methods and class_data.methods["impl"] then
-        local impl_children = {}
-        for _, m in ipairs(class_data.methods["impl"]) do
-            table.insert(impl_children, make_item_node(m))
-        end
-        if #impl_children > 0 then
-            -- ★修正: _has_children と loaded を明示
-            local node = Tree.Node({ 
-                text = "Implementations", 
-                kind = "GroupMethods", 
-                id = make_group_id("_impls"),
-                _has_children = true,
-                loaded = true
-            }, impl_children)
-            
-            if should_expand then node:expand() end
-            table.insert(func_children, node)
-        end
-    end
-
     if #func_children > 0 then
-        -- ★修正: _has_children と loaded を明示
+        table.sort(func_children, function(a, b) return (a.line or 0) < (b.line or 0) end)
         local node = Tree.Node({ 
             text = "Functions", 
             kind = "GroupMethods", 
@@ -111,7 +95,26 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
             _has_children = true,
             loaded = true
         }, func_children)
-        
+        if should_expand then node:expand() end
+        table.insert(children, node)
+    end
+
+    -- 3. Implementations (メソッド実装)
+    local impl_children = {}
+    if class_data.methods and class_data.methods["impl"] then
+        for _, m in ipairs(class_data.methods["impl"]) do
+            table.insert(impl_children, make_item_node(m))
+        end
+    end
+    if #impl_children > 0 then
+        table.sort(impl_children, function(a, b) return (a.line or 0) < (b.line or 0) end)
+        local node = Tree.Node({ 
+            text = "Implementations", 
+            kind = "GroupMethods", 
+            id = make_group_id("_impls"),
+            _has_children = true,
+            loaded = true
+        }, impl_children)
         if should_expand then node:expand() end
         table.insert(children, node)
     end
@@ -126,6 +129,7 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
         file_path = class_data.file_path,
         id = safe_node_id(node_id_raw, render_seen_ids),
         _has_children = (#children > 0),
+        loaded = true -- 子ノードを同期的に追加済み
     }, children)
     
     if is_current_class then
@@ -176,7 +180,8 @@ function M.build_from_context(context, on_complete)
             
             if not found_main and #symbols > 0 then
                  for _, item in ipairs(symbols) do
-                    if item.kind == "UClass" or item.kind == "Class" then
+                    local k = (item.kind or ""):lower()
+                    if k:find("class") or k:find("struct") or k:find("enum") then
                         local node = build_class_node(item, registry, seen_ids, true)
                         table.insert(root_nodes, node)
                     end
@@ -186,10 +191,11 @@ function M.build_from_context(context, on_complete)
         if on_complete then on_complete(root_nodes) end
     end
 
-    if current_info and current_info.header then
+    local target_file = current_info and (current_info.header or current_info.cpp)
+    if target_file then
         -- ★非同期に変更
         unl_api.provider.request("ucm.get_file_symbols", {
-            file_path = current_info.header
+            file_path = target_file
         }, function(ok, res)
             if ok and res and type(res) == "table" then
                 process_symbols(res)
@@ -215,7 +221,8 @@ function M.fetch_and_build(file_path, on_complete)
             local nodes = {}
 
             for _, item in ipairs(data) do
-                if item.kind == "UClass" or item.kind == "Class" or item.kind == "UStruct" or item.kind == "Struct" then
+                local k = (item.kind or ""):lower()
+                if k:find("class") or k:find("struct") or k:find("enum") then
                     local node = build_class_node(item, registry, seen_ids, true)
                     table.insert(nodes, node)
                 else
