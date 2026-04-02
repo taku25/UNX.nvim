@@ -2,7 +2,7 @@
 local IDRegistry = require("UNX.common.id_registry")
 local Tree = require("nui.tree")
 local unl_api = require("UNL.api")
-local unx_config = require("UNX.config") -- ★追加: 設定読み込み
+local unx_config = require("UNX.config")
 local M = {}
 
 local function safe_node_id(id, seen_ids)
@@ -22,12 +22,56 @@ local function safe_node_id(id, seen_ids)
     end
 end
 
+-- 同じ名前のクラスデータをマージする
+local function merge_symbols(symbols)
+    local merged = {}
+    local map = {}
+
+    for _, item in ipairs(symbols) do
+        local key = item.name
+        if not map[key] then
+            -- クローンを作成してマージのベースにする
+            local clone = vim.deepcopy(item)
+            map[key] = clone
+            table.insert(merged, clone)
+        else
+            local base = map[key]
+            -- fields のマージ
+            if item.fields then
+                base.fields = base.fields or {}
+                for access, list in pairs(item.fields) do
+                    base.fields[access] = base.fields[access] or {}
+                    for _, f in ipairs(list) do table.insert(base.fields[access], f) end
+                end
+            end
+            -- methods のマージ
+            if item.methods then
+                base.methods = base.methods or {}
+                for access, list in pairs(item.methods) do
+                    base.methods[access] = base.methods[access] or {}
+                    for _, m in ipairs(list) do table.insert(base.methods[access], m) end
+                end
+            end
+            -- enum_values のマージ
+            if item.enum_values then
+                base.enum_values = base.enum_values or {}
+                for _, v in ipairs(item.enum_values) do table.insert(base.enum_values, v) end
+            end
+            -- 行番号はより小さい方（定義側）を優先
+            if item.line and (not base.line or item.line < base.line) then
+                base.line = item.line
+                base.file_path = item.file_path
+            end
+        end
+    end
+    return merged
+end
+
 local function build_class_node(class_data, registry, render_seen_ids, is_current_class)
     local children = {}
     local file_hash = IDRegistry.get_file_hash(class_data.file_path)
-    local class_base_id = string.format("%s_%s_%d", file_hash, class_data.name, class_data.line)
+    local class_base_id = string.format("%s_%s_%d", file_hash, class_data.name, class_data.line or 0)
 
-    -- ★設定を取得
     local conf = unx_config.get()
     local should_expand = conf.symbols and conf.symbols.expand_groups
 
@@ -38,12 +82,10 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
 
     local function make_item_node(item)
         local kind = item.kind
-        -- 'impl' accessレベルの場合、種類を 'Implementation' に変更して見た目を分ける
-        if item.access == "impl" then
-            kind = "Implementation"
-        end
+        if item.access == "impl" then kind = "Implementation" end
 
-        local raw = string.format("%s_%s_%d", file_hash, item.name, item.line)
+        local item_file_hash = IDRegistry.get_file_hash(item.file_path or class_data.file_path)
+        local raw = string.format("%s_%s_%d", item_file_hash, item.name, item.line or 0)
         local unique = safe_node_id(registry:get(raw), render_seen_ids)
         return Tree.Node({
             text = item.name,
@@ -51,12 +93,12 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
             kind = kind,
             access = item.access,
             line = item.line,
-            file_path = item.file_path,
+            file_path = item.file_path or class_data.file_path,
             id = unique
         })
     end
 
-    -- 1. Properties (メンバー)
+    -- 1. Properties
     local prop_groups = {}
     for _, access in ipairs({"public", "protected", "private", "impl"}) do
         if class_data.fields and class_data.fields[access] and #class_data.fields[access] > 0 then
@@ -73,7 +115,7 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
                 _has_children = true,
                 loaded = true
             }, access_children)
-            group_node:expand() -- ★追加: 最初から展開する
+            group_node:expand()
             table.insert(prop_groups, group_node)
         end
     end
@@ -90,13 +132,20 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
         table.insert(children, node)
     end
 
-    -- 2. Functions (メソッド定義)
-    local func_groups = {}
+    -- 2. Functions
+    local function_subgroups = {}
+
+    -- 2a. definitions
+    local def_groups = {}
     for _, access in ipairs({"public", "protected", "private"}) do
         if class_data.methods and class_data.methods[access] and #class_data.methods[access] > 0 then
             local access_children = {}
+            local seen_names = {}
             for _, m in ipairs(class_data.methods[access]) do
-                table.insert(access_children, make_item_node(m))
+                if not seen_names[m.name] then
+                    table.insert(access_children, make_item_node(m))
+                    seen_names[m.name] = true
+                end
             end
             table.sort(access_children, function(a, b) return (a.line or 0) < (b.line or 0) end)
 
@@ -107,39 +156,50 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
                 _has_children = true,
                 loaded = true
             }, access_children)
-            group_node:expand() -- ★追加: 最初から展開する
-            table.insert(func_groups, group_node)
+            group_node:expand()
+            table.insert(def_groups, group_node)
         end
     end
 
-    if #func_groups > 0 then
+    if #def_groups > 0 then
+        local def_node = Tree.Node({
+            text = "definitions",
+            kind = "GroupMethods",
+            id = make_group_id("_func_defs"),
+            _has_children = true,
+            loaded = true
+        }, def_groups)
+        def_node:expand()
+        table.insert(function_subgroups, def_node)
+    end
+
+    -- 2b. implementations
+    local impl_items = {}
+    if class_data.methods and class_data.methods["impl"] and #class_data.methods["impl"] > 0 then
+        for _, m in ipairs(class_data.methods["impl"]) do
+            table.insert(impl_items, make_item_node(m))
+        end
+        table.sort(impl_items, function(a, b) return (a.line or 0) < (b.line or 0) end)
+        
+        local impl_node = Tree.Node({
+            text = "implementations",
+            kind = "GroupMethods",
+            id = make_group_id("_func_impls"),
+            _has_children = true,
+            loaded = true
+        }, impl_items)
+        impl_node:expand()
+        table.insert(function_subgroups, impl_node)
+    end
+
+    if #function_subgroups > 0 then
         local node = Tree.Node({ 
             text = "Functions", 
             kind = "GroupMethods", 
             id = make_group_id("_funcs"),
             _has_children = true,
             loaded = true
-        }, func_groups)
-        if should_expand then node:expand() end
-        table.insert(children, node)
-    end
-
-    -- 3. Implementations (メソッド実装)
-    local impl_children = {}
-    if class_data.methods and class_data.methods["impl"] then
-        for _, m in ipairs(class_data.methods["impl"]) do
-            table.insert(impl_children, make_item_node(m))
-        end
-    end
-    if #impl_children > 0 then
-        table.sort(impl_children, function(a, b) return (a.line or 0) < (b.line or 0) end)
-        local node = Tree.Node({ 
-            text = "Implementations", 
-            kind = "GroupMethods", 
-            id = make_group_id("_impls"),
-            _has_children = true,
-            loaded = true
-        }, impl_children)
+        }, function_subgroups)
         if should_expand then node:expand() end
         table.insert(children, node)
     end
@@ -194,6 +254,7 @@ function M.build_from_context(context, on_complete)
     
     local function process_symbols(symbols)
         if symbols then
+            symbols = merge_symbols(symbols) -- ★追加: シンボルをマージ
             local found_main = false
             for _, item in ipairs(symbols) do
                 if item.name == current_info.name then
@@ -238,6 +299,7 @@ function M.fetch_and_build(file_path, on_complete)
     }, function(ok, symbols)
         local function process(data)
             if type(data) ~= "table" then data = {} end
+            data = merge_symbols(data) -- ★追加: シンボルをマージ
 
             local registry = IDRegistry.new()
             local seen_ids = {}
@@ -249,7 +311,7 @@ function M.fetch_and_build(file_path, on_complete)
                     local node = build_class_node(item, registry, seen_ids, true)
                     table.insert(nodes, node)
                 else
-                    local id = safe_node_id(registry:get(item.name .. item.line), seen_ids)
+                    local id = safe_node_id(registry:get(item.name .. (item.line or 0)), seen_ids)
                     table.insert(nodes, Tree.Node({
                         text = item.name,
                         kind = item.kind,
@@ -273,6 +335,7 @@ end
 function M.parse_and_get_children(file_path, class_name, on_complete)
     unl_api.provider.request("ucm.get_file_symbols", { file_path = file_path }, function(ok, symbols)
         if ok and symbols and type(symbols) == "table" then
+            symbols = merge_symbols(symbols) -- ★追加: シンボルをマージ
             local registry = IDRegistry.new()
             local seen = {}
             
