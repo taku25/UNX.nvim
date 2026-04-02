@@ -49,6 +49,7 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
             text = item.name,
             detail = item.detail,
             kind = kind,
+            access = item.access,
             line = item.line,
             file_path = item.file_path,
             id = unique
@@ -56,45 +57,69 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
     end
 
     -- 1. Properties (メンバー)
-    local prop_children = {}
+    local prop_groups = {}
     for _, access in ipairs({"public", "protected", "private", "impl"}) do
-        if class_data.fields and class_data.fields[access] then
+        if class_data.fields and class_data.fields[access] and #class_data.fields[access] > 0 then
+            local access_children = {}
             for _, f in ipairs(class_data.fields[access]) do
-                table.insert(prop_children, make_item_node(f))
+                table.insert(access_children, make_item_node(f))
             end
+            table.sort(access_children, function(a, b) return (a.line or 0) < (b.line or 0) end)
+            
+            local group_node = Tree.Node({
+                text = access,
+                kind = "Access",
+                id = make_group_id("_prop_group_" .. access),
+                _has_children = true,
+                loaded = true
+            }, access_children)
+            group_node:expand() -- ★追加: 最初から展開する
+            table.insert(prop_groups, group_node)
         end
     end
-    if #prop_children > 0 then
-        table.sort(prop_children, function(a, b) return (a.line or 0) < (b.line or 0) end)
+
+    if #prop_groups > 0 then
         local node = Tree.Node({ 
             text = "Properties", 
             kind = "GroupFields", 
             id = make_group_id("_props"),
             _has_children = true,
             loaded = true
-        }, prop_children)
+        }, prop_groups)
         if should_expand then node:expand() end
         table.insert(children, node)
     end
 
     -- 2. Functions (メソッド定義)
-    local func_children = {}
+    local func_groups = {}
     for _, access in ipairs({"public", "protected", "private"}) do
-        if class_data.methods and class_data.methods[access] then
+        if class_data.methods and class_data.methods[access] and #class_data.methods[access] > 0 then
+            local access_children = {}
             for _, m in ipairs(class_data.methods[access]) do
-                table.insert(func_children, make_item_node(m))
+                table.insert(access_children, make_item_node(m))
             end
+            table.sort(access_children, function(a, b) return (a.line or 0) < (b.line or 0) end)
+
+            local group_node = Tree.Node({
+                text = access,
+                kind = "Access",
+                id = make_group_id("_func_group_" .. access),
+                _has_children = true,
+                loaded = true
+            }, access_children)
+            group_node:expand() -- ★追加: 最初から展開する
+            table.insert(func_groups, group_node)
         end
     end
-    if #func_children > 0 then
-        table.sort(func_children, function(a, b) return (a.line or 0) < (b.line or 0) end)
+
+    if #func_groups > 0 then
         local node = Tree.Node({ 
             text = "Functions", 
             kind = "GroupMethods", 
             id = make_group_id("_funcs"),
             _has_children = true,
             loaded = true
-        }, func_children)
+        }, func_groups)
         if should_expand then node:expand() end
         table.insert(children, node)
     end
@@ -129,7 +154,7 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
         file_path = class_data.file_path,
         id = safe_node_id(node_id_raw, render_seen_ids),
         _has_children = (#children > 0),
-        loaded = true -- 子ノードを同期的に追加済み
+        loaded = true
     }, children)
     
     if is_current_class then
@@ -193,7 +218,6 @@ function M.build_from_context(context, on_complete)
 
     local target_file = current_info and (current_info.header or current_info.cpp)
     if target_file then
-        -- ★非同期に変更
         unl_api.provider.request("ucm.get_file_symbols", {
             file_path = target_file
         }, function(ok, res)
@@ -209,7 +233,6 @@ function M.build_from_context(context, on_complete)
 end
 
 function M.fetch_and_build(file_path, on_complete)
-    -- ★非同期に変更
     unl_api.provider.request("ucm.get_file_symbols", {
         file_path = file_path
     }, function(ok, symbols)
@@ -248,7 +271,6 @@ function M.fetch_and_build(file_path, on_complete)
 end
 
 function M.parse_and_get_children(file_path, class_name, on_complete)
-    -- ★非同期に変更
     unl_api.provider.request("ucm.get_file_symbols", { file_path = file_path }, function(ok, symbols)
         if ok and symbols and type(symbols) == "table" then
             local registry = IDRegistry.new()

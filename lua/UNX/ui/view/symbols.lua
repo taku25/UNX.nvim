@@ -49,13 +49,23 @@ local function prepare_node(node)
     end
     
     local text = tostring(node.text or "Unknown"):gsub("[\r\n]+", " ")
-    local detail = node.detail and tostring(node.detail):gsub("[\r\n]+", " ") or ""
+    local detail = ""
+    if node.detail and node.detail ~= vim.NIL then
+        detail = tostring(node.detail):gsub("[\r\n]+", " ")
+    end
     
     line:append(tostring(icon or " "), icon_hl or "Normal")
     line:append(text, text_hl or "Normal")
     
     if detail ~= "" then
-        line:append(detail, "Comment")
+        line:append(" " .. detail, "Comment") -- 前にスペースを追加して見やすく
+    end
+
+    -- ★修正: 属性情報の表示 (Accessグループノード以外では表示しない、またはEnumを考慮)
+    -- node.kind が "Access" の場合は、そのノード自体が public/private などを表す
+    if node.kind == "Access" then
+        -- Accessノード自体のテキスト（public等）にハイライトを適用
+        -- prepare_nodeの冒頭で既にappendされているため、ここでは追加の装飾のみ
     end
 
     return line
