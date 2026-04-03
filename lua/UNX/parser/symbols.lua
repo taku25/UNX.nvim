@@ -90,6 +90,7 @@ local function build_class_node(class_data, registry, render_seen_ids, is_curren
         return Tree.Node({
             text = item.name,
             detail = item.detail,
+            return_type = item.return_type,
             kind = kind,
             access = item.access,
             line = item.line,
@@ -314,6 +315,8 @@ function M.fetch_and_build(file_path, on_complete)
                     local id = safe_node_id(registry:get(item.name .. (item.line or 0)), seen_ids)
                     table.insert(nodes, Tree.Node({
                         text = item.name,
+                        detail = item.detail,
+                        return_type = item.return_type,
                         kind = item.kind,
                         line = item.line,
                         file_path = item.file_path,

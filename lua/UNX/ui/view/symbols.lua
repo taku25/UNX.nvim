@@ -50,15 +50,34 @@ local function prepare_node(node)
     
     local text = tostring(node.text or "Unknown"):gsub("[\r\n]+", " ")
     local detail = ""
-    if node.detail and node.detail ~= vim.NIL then
-        detail = tostring(node.detail):gsub("[\r\n]+", " ")
+    
+    if node.kind == "Function" or node.kind == "UFunction" or node.kind == "Constructor" or node.kind == "Implementation" then
+        -- 関数系: (パラメータ) : 戻り値
+        if node.detail and node.detail ~= vim.NIL and node.detail ~= "" then
+            detail = tostring(node.detail):gsub("[\r\n]+", " ")
+        end
+        if node.return_type and node.return_type ~= vim.NIL and node.return_type ~= "" then
+            local rt_text = tostring(node.return_type):gsub("[\r\n]+", " ")
+            if detail ~= "" then
+                detail = detail .. ": " .. rt_text
+            else
+                detail = rt_text
+            end
+        end
+    else
+        -- プロパティ等: 型名のみ
+        if node.return_type and node.return_type ~= vim.NIL and node.return_type ~= "" then
+            detail = tostring(node.return_type):gsub("[\r\n]+", " ")
+        elseif node.detail and node.detail ~= vim.NIL and node.detail ~= "" then
+            detail = tostring(node.detail):gsub("[\r\n]+", " ")
+        end
     end
     
     line:append(tostring(icon or " "), icon_hl or "Normal")
     line:append(text, text_hl or "Normal")
     
     if detail ~= "" then
-        line:append(" " .. detail, "Comment") -- 前にスペースを追加して見やすく
+        line:append("  " .. detail, "Comment")
     end
 
     -- ★修正: 属性情報の表示 (Accessグループノード以外では表示しない、またはEnumを考慮)
