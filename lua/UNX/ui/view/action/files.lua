@@ -373,7 +373,7 @@ function M.find_files_recursive(tree)
             -- Verify it's actually under the target directory
             if item_path:find(prefix, 1, true) == 1 then
                 table.insert(filtered_items, {
-                    display = item.filename,
+                    display = item.filename or vim.fn.fnamemodify(item.path, ":t"),
                     value = item.path,
                     filename = item.path,
                 })
@@ -381,7 +381,6 @@ function M.find_files_recursive(tree)
         end
 
         if #filtered_items == 0 then
-            -- ★修正
             return logger.get().warn("No files found under " .. dir_name)
         end
 

@@ -108,7 +108,8 @@ local function paths_to_tree_nodes(file_items, root_path)
         for _, node_data in ipairs(nodes_list) do
             local children = nil
             if node_data.type == "directory" then
-                local entry = dir_map[node_data.path]
+                -- node_data.id は正規化済みパスで dir_map のキーと一致する
+                local entry = dir_map[node_data.id]
                 if entry and #entry.children > 0 then children = build_nui_hierarchy(entry.children) end
             end
             local final_node = Tree.Node({ text = node_data.text, id = node_data.id, path = node_data.path, type = node_data.type, _has_children = (children ~= nil) }, children)
@@ -171,7 +172,14 @@ function M.fetch_root_data(tree_instance, expanded_state, skip_vcs_refresh)
 
             if items then
                 local filtered_items = {}
-                for _, item in ipairs(items) do table.insert(filtered_items, { path = item.path, display = item.filename, type = "file" }) end
+                local norm_proj_root = unl_path.normalize(project_info.root):lower()
+                for _, item in ipairs(items) do
+                    -- プロジェクトルート配下のファイルのみを表示する
+                    local norm_item_path = unl_path.normalize(item.path):lower()
+                    if vim.startswith(norm_item_path, norm_proj_root .. "/") then
+                        table.insert(filtered_items, { path = item.path, display = item.filename, type = "file" })
+                    end
+                end
                 if #filtered_items > 0 then
                     local hierarchy_nodes = paths_to_tree_nodes(filtered_items, project_info.root)
                     local norm_root = unl_path.normalize(project_info.root)
