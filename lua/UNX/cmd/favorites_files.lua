@@ -32,6 +32,9 @@ function M.execute(opts)
   local target_files = {} 
 
   for _, item in ipairs(favorites) do
+    -- 仮想フォルダ（パネル整理用グループ）はpathを持たないのでスキップ
+    if item.is_folder or not item.path then goto continue end
+
     local norm_path = unl_path.normalize(item.path)
     
     -- エンジンフォルダが含まれていたら、スコープを "full" に広げる
@@ -48,6 +51,8 @@ function M.execute(opts)
     else
       target_files[norm_path] = true
     end
+
+    ::continue::
   end
 
   -- 最適化されたスコープでログ出し
