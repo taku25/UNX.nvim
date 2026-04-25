@@ -80,6 +80,7 @@ function M.create(bufnr, winid)
         if expanded_state[game_id] == nil then expanded_state[game_id] = true end
         if expanded_state["root_pending_changes"] == nil then expanded_state["root_pending_changes"] = true end
         if expanded_state["root_favorites"] == nil then expanded_state["root_favorites"] = true end
+        if expanded_state["root_recent_files"] == nil then expanded_state["root_recent_files"] = true end
     end
 
     -- 2. ツリー作成 ( builder.fetch_root_data は同期的にノードを返す)

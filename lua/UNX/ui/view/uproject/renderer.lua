@@ -1,10 +1,11 @@
--- lua/UNX/ui/view/uproject/renderer.lua
+﻿-- lua/UNX/ui/view/uproject/renderer.lua
 local Line = require("nui.line")
 local unl_path = require("UNL.path")
 local unx_vcs = require("UNX.vcs")
 local utils = require("UNX.common.utils")
 local PendingView = require("UNX.ui.view.uproject.pending")
 local FavoritesView = require("UNX.ui.view.uproject.favorites")
+local RecentView = require("UNX.ui.view.uproject.recent")
 
 local has_devicons, devicons = pcall(require, "nvim-web-devicons")
 
@@ -45,6 +46,7 @@ function M.prepare_node(node)
     local is_special_folder = (uep_type == "root_game_fs")
         or (uep_type == "root_engine_fs")
         or (uep_type == FavoritesView.ROOT_TYPE)
+        or (uep_type == RecentView.ROOT_TYPE)
         or (uep_type == PendingView.ROOT_TYPE_PENDING)
         or (uep_type == PendingView.ROOT_TYPE_UNPUSHED)
 
@@ -54,6 +56,9 @@ function M.prepare_node(node)
             icon_hl = "UNXDirectoryIcon"
         elseif uep_type == FavoritesView.ROOT_TYPE then
             icon_text = " "
+            icon_hl = "Special"
+        elseif uep_type == RecentView.ROOT_TYPE then
+            icon_text = (conf.uproject and conf.uproject.icon and conf.uproject.icon.recent) or " "
             icon_hl = "Special"
         elseif uep_type == PendingView.ROOT_TYPE_PENDING then
             icon_text = " "

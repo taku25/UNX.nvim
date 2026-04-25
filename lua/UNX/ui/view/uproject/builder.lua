@@ -9,6 +9,7 @@ local fs = require("vim.fs")
 
 local PendingView = require("UNX.ui.view.uproject.pending")
 local FavoritesView = require("UNX.ui.view.uproject.favorites")
+local RecentView = require("UNX.ui.view.uproject.recent")
 
 local M = {}
 
@@ -223,6 +224,18 @@ function M.fetch_root_data(tree_instance, expanded_state, skip_vcs_refresh)
 
     local fav_node = FavoritesView.create_root_node(is_fav_exp, project_info.root)
     if fav_node then table.insert(nodes, fav_node) end
+
+    -- Recent Files
+    local is_recent_exp = (expanded_state["root_recent_files"] ~= false)
+    if current_tree then
+        local r_node = current_tree:get_node("root_recent_files")
+        if r_node then is_recent_exp = r_node:is_expanded() end
+    end
+    if conf.uproject and conf.uproject.show_recent ~= false then
+        local recent_max = (conf.uproject.recent_max or 15)
+        local recent_node = RecentView.create_root_node(is_recent_exp, project_info.root, recent_max)
+        if recent_node then table.insert(nodes, recent_node) end
+    end
     
     if not ctx.pending_states then ctx.pending_states = {} end
     ctx.pending_states[PendingView.ROOT_TYPE_PENDING] = (expanded_state["root_pending_changes"] ~= false)
@@ -293,6 +306,13 @@ function M.lazy_load_children(tree_instance, parent_node)
 
     if extra.uep_type == FavoritesView.ROOT_TYPE then
         local nui_children = FavoritesView.create_children_nodes(extra.project_root)
+        tree_instance:set_nodes(nui_children, parent_node:get_id()); return
+    end
+
+    if extra.uep_type == RecentView.ROOT_TYPE then
+        local conf = require("UNX.config").get()
+        local max_count = extra.max_count or (conf.uproject and conf.uproject.recent_max) or 15
+        local nui_children = RecentView.create_children_nodes(extra.project_root, max_count)
         tree_instance:set_nodes(nui_children, parent_node:get_id()); return
     end
 

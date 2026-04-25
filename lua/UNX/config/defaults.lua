@@ -1,4 +1,4 @@
--- lua/UNX/config/defaults.lua
+﻿-- lua/UNX/config/defaults.lua
 local M = {}
 
 M.defaults = {
@@ -43,13 +43,16 @@ M.defaults = {
     },
     uproject = {
         show_hidden = false,
+        show_recent = true,
+        recent_max  = 15,
         icon = {
             expander_open   = "",
             expander_closed = "",
             folder_closed   = "",
             folder_open     = "",
             default_file    = "",
-            modified        = "[+] ", 
+            modified        = "[+]",
+            recent          = "󱋡 ",
         },
         vcs_icons = {
             Modified  = "",
