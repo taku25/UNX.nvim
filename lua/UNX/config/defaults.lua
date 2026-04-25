@@ -23,6 +23,7 @@ M.defaults = {
         UNXDirectoryIcon = { link = "Directory" },
         UNXFileIcon      = { link = "Comment" },
         UNXFileName      = { link = "Normal" },
+        UNXCurrentFile   = { link = "CursorLineNr" },
         UNXIndentMarker  = { link = "NonText" },
         UNXModifiedIcon  = { link = "Special" },
 

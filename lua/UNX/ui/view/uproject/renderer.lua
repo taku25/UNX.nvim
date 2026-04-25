@@ -10,6 +10,13 @@ local has_devicons, devicons = pcall(require, "nvim-web-devicons")
 
 local M = {}
 
+-- 現在開いているバッファの正規化パス（nil = 追跡なし）
+local current_buf_path = nil
+
+function M.set_current_path(path)
+    current_buf_path = path
+end
+
 local function get_platform_icon(name)
     local lower = name:lower()
     if lower:find("windows") then return " " end
@@ -80,6 +87,11 @@ function M.prepare_node(node)
 
     if node.extra and node.extra.vcs_status_override == "Unpushed" then
         name_hl = "UNXVCSAdded"
+    end
+
+    -- 現在開いているバッファと一致するノードを強調表示
+    if node.path and current_buf_path and norm_path == current_buf_path then
+        name_hl = "UNXCurrentFile"
     end
 
     line:append(node.text, name_hl)

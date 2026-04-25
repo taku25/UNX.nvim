@@ -328,6 +328,33 @@ function M.setup(opts)
         end,
     })
 
+    -- 現在開いているバッファをエクスプローラーで強調表示する
+    vim.api.nvim_create_autocmd({ "BufEnter" }, {
+        group = vim.api.nvim_create_augroup("UNX_CurrentBuffer", { clear = true }),
+        callback = function()
+            if not M.is_open() then return end
+            -- エクスプローラー自身のバッファはスキップ
+            local ft = vim.bo.filetype
+            local bt = vim.bo.buftype
+            if ft == "unx-explorer" or bt == "nofile" or bt == "terminal" then return end
+
+            local path = vim.api.nvim_buf_get_name(0)
+            if path == "" then return end
+
+            local unl_path = require("UNL.path")
+            ViewUproject.set_current_buf_path(unl_path.normalize(path))
+
+            -- uproject タブが表示中なら再レンダリング
+            local current_tab = get_current_tab_key()
+            if current_tab == "uproject" then
+                local state = ui.tabs.uproject
+                if state and state.tree then
+                    ViewUproject.request_render()
+                end
+            end
+        end,
+    })
+
     vim.api.nvim_create_autocmd("WinClosed", {
         group = vim.api.nvim_create_augroup("UNX_AutoClose", { clear = true }),
         callback = function(args)
@@ -387,6 +414,13 @@ function M.open()
 
     local saved_tab = get_current_tab_key()
     switch_layout(saved_tab)
+
+    -- 開いているバッファを初期ハイライト対象としてセット
+    local cur_path = vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())
+    if cur_path ~= "" then
+        local unl_path = require("UNL.path")
+        ViewUproject.set_current_buf_path(unl_path.normalize(cur_path))
+    end
 
     if ui.tabs.uproject and ui.tabs.uproject.tree then
         ViewUproject.refresh(ui.tabs.uproject.tree, ui.win_main)

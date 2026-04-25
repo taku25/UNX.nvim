@@ -127,4 +127,14 @@ function M.cancel_async_tasks()
     if save_timer then save_timer:stop(); if not save_timer:is_closing() then save_timer:close() end save_timer = nil end
 end
 
+--- 現在開いているバッファのパスをレンダラーに伝える
+function M.set_current_buf_path(path)
+    renderer.set_current_path(path)
+end
+
+--- デバウンス付き再レンダリングをスケジュール（バッファ変更時の呼び出し用）
+function M.request_render()
+    schedule_render()
+end
+
 return M
