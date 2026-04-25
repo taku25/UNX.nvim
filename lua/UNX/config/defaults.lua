@@ -39,7 +39,22 @@ M.defaults = {
         UNXVCSUntracked  = { link = "Function" },
         UNXVCSIgnored    = { link = "Comment" },
         
-        UNXVCSFunction   = { link = "Function" }, 
+        UNXVCSFunction   = { link = "Function" },
+
+        UNXSelected      = { link = "DiagnosticOk" },
+    },
+    preview = {
+        auto             = true,   -- カーソル移動で自動プレビュー
+        debounce_ms      = 150,
+        max_file_size_kb = 512,
+        -- フロートウィンドウのサイズをエディタ全体に対する割合で指定
+        width_pct        = 0.90,   -- エディタ幅の 45%
+        height_pct       = 0.80,   -- エディタ高さの 80%
+        min_width        = 20,     -- 最小幅（列数）
+        min_height       = 5,      -- 最小高さ（行数）
+    },
+    multiselect = {
+        enabled = true,
     },
     uproject = {
         show_hidden = false,
@@ -118,7 +133,9 @@ M.defaults = {
         action_rename_favorite_folder = "<C-r>",
         action_remove_favorite_folder = "<C-d>",
         action_find_files = "f",
-        action_toggle_parents = "p",
+        action_preview_toggle  = "p",
+        action_select_toggle   = "<Space>",
+        action_clear_selection = "<Esc>",
         action_force_refresh = "R",
         action_diff = "D",
         action_open_in_ide = "<C-o>",

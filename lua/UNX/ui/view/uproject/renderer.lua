@@ -14,8 +14,15 @@ local M = {}
 -- 現在開いているバッファの正規化パス（nil = 追跡なし）
 local current_buf_path = nil
 
+-- 選択中のパス集合 { [normalized_path] = true }
+local selected_paths = {}
+
 function M.set_current_path(path)
     current_buf_path = path
+end
+
+function M.set_selected_paths(paths)
+    selected_paths = paths or {}
 end
 
 local function get_platform_icon(name)
@@ -99,7 +106,17 @@ function M.prepare_node(node)
         name_hl = "UNXCurrentFile"
     end
 
-    line:append(node.text, name_hl)
+    -- マルチセレクト: 選択中はファイル名の前にマーカーを置き、名前も選択色に
+    local is_selected = node.path and node.type == "file"
+        and selected_paths[unl_path.normalize(node.path)]
+
+    if is_selected then
+        line:append("● ", "UNXSelected")
+        line:append(node.text, "UNXSelected")
+    else
+        line:append(node.text, name_hl)
+    end
+
     return line
 end
 

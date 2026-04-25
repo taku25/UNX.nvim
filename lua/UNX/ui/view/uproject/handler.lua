@@ -7,6 +7,8 @@ local cache = require("UNX.cache")
 local file_actions = require("UNX.ui.view.action.files")
 local diff_action = require("UNX.ui.view.action.diff")
 local filter_action = require("UNX.ui.view.action.filter")
+local preview_mod = require("UNX.ui.view.uproject.preview")
+local logger = require("UNX.logger")
 
 local PendingView = require("UNX.ui.view.uproject.pending")
 local FavoritesView = require("UNX.ui.view.uproject.favorites")
@@ -87,6 +89,72 @@ function M.apply_keymaps(bufnr, active_tree, conf)
     end
 
     vim.keymap.set("n", "/", function() filter_action.start_filter(active_tree) end, map_opts)
+
+    -- プレビュー: p キーでトグル、auto モードでは CursorMoved で自動表示
+    if keys.action_preview_toggle then
+        vim.keymap.set("n", keys.action_preview_toggle, function()
+            local node = active_tree:get_node()
+            if not node or not node.path then return end
+            if node.type == "directory" then
+                preview_mod.toggle_enabled()
+                return
+            end
+            local anchor_win = vim.api.nvim_get_current_win()
+            preview_mod.toggle(node.path, anchor_win)
+        end, map_opts)
+    end
+
+    -- マルチセレクト: <Space> でトグル
+    -- nowait = true でグローバルの <Space>X 系マッピング（treesitter等）との競合を防ぐ
+    local select_map_opts = { buffer = bufnr, noremap = true, silent = true, nowait = true }
+    local view_uproject = require("UNX.ui.view.uproject")
+    local multiselect_enabled = not conf.multiselect or conf.multiselect.enabled ~= false
+
+    if multiselect_enabled and keys.action_select_toggle then
+        vim.keymap.set("n", keys.action_select_toggle, function()
+            local node = active_tree:get_node()
+            if not node or not node.path or node.type == "directory" then return end
+            local added = view_uproject.toggle_selected(node.path)
+            local fname = vim.fn.fnamemodify(node.path, ":t")
+            local icon = added and "●" or "○"
+            local n = view_uproject.selected_count()
+            logger.get().info(icon .. " " .. fname .. (n > 0 and ("  [" .. n .. " selected]") or ""))
+        end, select_map_opts)
+    end
+
+    -- 選択クリア: <Esc>（選択中のときのみ動作）
+    if multiselect_enabled and keys.action_clear_selection then
+        vim.keymap.set("n", keys.action_clear_selection, function()
+            if view_uproject.selected_count() > 0 then
+                view_uproject.clear_selected()
+                logger.get().info("○ Selection cleared")
+            end
+        end, select_map_opts)
+    end
+
+    -- auto preview: CursorMoved でデバウンス表示
+    if conf.preview and conf.preview.auto ~= false then
+        vim.api.nvim_create_autocmd("CursorMoved", {
+            buffer = bufnr,
+            callback = function()
+                if not preview_mod.is_enabled() then return end
+                local node = active_tree:get_node()
+                if not node or not node.path or node.type == "directory" then
+                    preview_mod.close(); return
+                end
+                local anchor_win = vim.api.nvim_get_current_win()
+                preview_mod.schedule_show(node.path, anchor_win)
+            end,
+        })
+
+        -- UNX バッファを離れたらプレビューを閉じる
+        vim.api.nvim_create_autocmd("BufLeave", {
+            buffer = bufnr,
+            callback = function()
+                preview_mod.close()
+            end,
+        })
+    end
 
     if keys.custom then
         for key, func in pairs(keys.custom) do

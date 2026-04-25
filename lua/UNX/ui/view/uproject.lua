@@ -16,6 +16,15 @@ local active_tree = nil
 local render_timer = nil
 local save_timer = nil
 local expanded_state = {}
+local selected_paths = {}  -- マルチセレクト: { [normalized_path] = true }
+
+--- 選択操作専用: デバウンスなしで即時同期レンダリング
+local function render_sync()
+    if not active_tree or not vim.api.nvim_buf_is_valid(active_tree.bufnr) then return end
+    vim.api.nvim_buf_set_option(active_tree.bufnr, "modifiable", true)
+    active_tree:render()
+    vim.api.nvim_buf_set_option(active_tree.bufnr, "modifiable", false)
+end
 
 local function schedule_render()
     if not active_tree or not vim.api.nvim_buf_is_valid(active_tree.bufnr) then return end
@@ -50,6 +59,45 @@ end
 function M.get_active_tree() return active_tree end
 function M.get_expanded_state() return expanded_state end
 
+-- --------------------------------------------------------------------------
+-- マルチセレクト API
+-- --------------------------------------------------------------------------
+
+function M.get_selected_paths() return selected_paths end
+
+function M.get_selected_list()
+    local list = {}
+    for path in pairs(selected_paths) do table.insert(list, path) end
+    return list
+end
+
+function M.selected_count()
+    local n = 0
+    for _ in pairs(selected_paths) do n = n + 1 end
+    return n
+end
+
+--- 指定パスの選択状態をトグルし、再描画する。追加なら true を返す。
+function M.toggle_selected(path)
+    if not path then return false end
+    local norm = unl_path.normalize(path)
+    if selected_paths[norm] then
+        selected_paths[norm] = nil
+    else
+        selected_paths[norm] = true
+    end
+    renderer.set_selected_paths(selected_paths)
+    render_sync()
+    return selected_paths[norm] == true
+end
+
+--- 選択をすべて解除し、再描画する。
+function M.clear_selected()
+    for k in pairs(selected_paths) do selected_paths[k] = nil end
+    renderer.set_selected_paths(selected_paths)
+    render_sync()
+end
+
 function M.restore_expansion_explicit(tree)
     if tree and not vim.tbl_isempty(expanded_state) then
         handler.restore_expansion(tree, expanded_state, builder)
@@ -61,6 +109,8 @@ function M.create(bufnr, winid)
     
     -- 状態をクリア (プロジェクト切り替え時のため)
     for k in pairs(expanded_state) do expanded_state[k] = nil end
+    for k in pairs(selected_paths) do selected_paths[k] = nil end
+    renderer.set_selected_paths(selected_paths)
     
     -- 0. プロジェクトルートの検出とコンテキスト更新
     local project_info = unl_finder.project.find_project(vim.loop.cwd())

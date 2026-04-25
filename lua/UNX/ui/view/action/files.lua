@@ -132,6 +132,28 @@ function M.add_directory(tree)
 end
 
 function M.delete(tree)
+    local view_uproject = require("UNX.ui.view.uproject")
+    local selected = view_uproject.get_selected_list()
+
+    -- マルチセレクト: 選択中ファイルを一括削除
+    if #selected > 0 then
+        local choice = vim.fn.confirm(
+            string.format("Delete %d selected file(s)?", #selected), "&Yes\n&No", 2)
+        if choice ~= 1 then return end
+        for _, path in ipairs(selected) do
+            local stat = vim.uv and vim.uv.fs_stat(path) or vim.loop.fs_stat(path)
+            if stat and stat.type == "file" then
+                unl_api.provider.request("ucm.class.delete", {
+                    file_path = path,
+                    logger_name = "UNX",
+                })
+            end
+        end
+        view_uproject.clear_selected()
+        return
+    end
+
+    -- シングル削除（既存ロジック）
     local node = tree:get_node()
     if not node then return end
     
@@ -151,7 +173,6 @@ function M.delete(tree)
 
             local ok = vim.fn.delete(path, "rf")
             if ok == 0 then 
-                -- ★修正
                 logger.get().info("Directory deleted: " .. path)
                 
                 local unl_events_ok, unl_events = pcall(require, "UNL.event.events")
@@ -164,7 +185,6 @@ function M.delete(tree)
                      })
                 end
             else
-                -- ★修正
                 logger.get().error("Failed to delete directory. Error code: " .. tostring(ok))
             end
         end
@@ -277,69 +297,132 @@ function M.rename(tree)
     end
 end
 
-function M.toggle_favorite(tree)
-    local node = tree:get_node()
-    if not node then return end
-    
-    local path = sanitize_path(node.path)
-    if not path then return end
-    
-    local ctx = require("UNX.context.uproject").get()
-    local project_root = ctx.project_root or require("UNL.finder").project.find_project_root(vim.loop.cwd())
-    
-    -- Check if already a favorite (for direct removal)
-    local favorites = favorites_cache.load(project_root)
-    local is_already_fav = false
-    local norm_path = unl_path.normalize(path)
-    for _, item in ipairs(favorites) do
-        if not item.is_folder and unl_path.normalize(item.path) == norm_path then
-            is_already_fav = true
-            break
+-- 共通: パス群を指定フォルダに追加（重複スキップ）。追加件数を返す
+local function add_paths_to_folder(paths, folder, project_root)
+    local added_count = 0
+    for _, path in ipairs(paths) do
+        local norm = unl_path.normalize(path)
+        local favs = favorites_cache.load(project_root)
+        local already = false
+        for _, item in ipairs(favs) do
+            if not item.is_folder and unl_path.normalize(item.path) == norm then
+                already = true; break
+            end
+        end
+        if not already then
+            favorites_cache.toggle(path, project_root, folder)
+            added_count = added_count + 1
         end
     end
+    return added_count
+end
 
-    if is_already_fav then
-        local _, msg = favorites_cache.toggle(path, project_root)
-        logger.get().info("☆ " .. msg .. ": " .. vim.fn.fnamemodify(path, ":t"))
-        require("UNX.ui.view.uproject").refresh(tree)
+-- 共通: フォルダが複数あるときpickerを出してフォルダを選択し、paths を追加する。
+-- on_done(folder_name, added_count) が選択後に呼ばれる。
+local function pick_folder_and_add(paths, project_root, on_done)
+    local folders = favorites_cache.get_folders(project_root)
+    if #folders <= 1 then
+        local count = add_paths_to_folder(paths, "Default", project_root)
+        on_done("Default", count)
         return
     end
 
-    -- Adding new favorite: check for folders
-    local folders = favorites_cache.get_folders(project_root)
-    if #folders <= 1 then
-        -- Only "Default" exists, add directly
-        local added, msg = favorites_cache.toggle(path, project_root, "Default")
-        local icon = added and "★ " or "☆ "
-        logger.get().info(icon .. msg .. ": " .. vim.fn.fnamemodify(path, ":t"))
-        require("UNX.ui.view.uproject").refresh(tree)
-    else
-        -- Use UNL picker to select folder
-        local picker_items = {}
-        for _, f in ipairs(folders) do
-            table.insert(picker_items, { label = f, value = f })
+    local picker_items = {}
+    for _, f in ipairs(folders) do
+        table.insert(picker_items, { label = f, value = f })
+    end
+    unl_picker.open({
+        kind = "unx_favorites_add_to_folder",
+        title = "Add to Favorites folder",
+        items = picker_items,
+        conf = unx_config.get(),
+        preview_enabled = false,
+        on_submit = function(selection)
+            if not selection then return end
+            local parts = vim.split(selection, "/", { plain = true })
+            local folder = parts[#parts]
+            local count = add_paths_to_folder(paths, folder, project_root)
+            on_done(folder, count)
+        end,
+    })
+end
+
+function M.toggle_favorite(tree)
+    local view_uproject = require("UNX.ui.view.uproject")
+    local selected = view_uproject.get_selected_list()
+    local ctx = require("UNX.context.uproject").get()
+    local project_root = ctx.project_root or require("UNL.finder").project.find_project_root(vim.loop.cwd())
+
+    -- マルチセレクト: 既登録→削除 / 未登録→フォルダpicker経由で追加
+    if #selected > 0 then
+        local favs = favorites_cache.load(project_root)
+        local fav_set = {}
+        for _, item in ipairs(favs) do
+            if not item.is_folder then
+                fav_set[unl_path.normalize(item.path)] = true
+            end
         end
 
-        unl_picker.open({
-            kind = "unx_favorites_add_to_folder",
-            title = "Add to Favorites folder",
-            items = picker_items,
-            conf = unx_config.get(),
-            preview_enabled = false,
-            on_submit = function(selection)
-                if selection then
-                    local choice_path = selection
-                    local parts = vim.split(choice_path, "/", { plain = true })
-                    local choice = parts[#parts] -- 最後の名前を取得
+        local to_remove, to_add = {}, {}
+        for _, path in ipairs(selected) do
+            if fav_set[unl_path.normalize(path)] then
+                table.insert(to_remove, path)
+            else
+                table.insert(to_add, path)
+            end
+        end
 
-                    local added, msg = favorites_cache.toggle(path, project_root, choice)
-                    local icon = added and "★ " or "☆ "
-                    logger.get().info(icon .. msg .. " (" .. choice_path .. "): " .. vim.fn.fnamemodify(path, ":t"))
-                    require("UNX.ui.view.uproject").refresh(tree)
+        -- 既登録分を一括削除
+        local removed_count = 0
+        for _, path in ipairs(to_remove) do
+            favorites_cache.toggle(path, project_root)
+            removed_count = removed_count + 1
+        end
+        if removed_count > 0 then
+            logger.get().info(string.format("☆ Removed %d file(s) from Favorites", removed_count))
+        end
+
+        -- 未登録分はフォルダpicker経由で追加
+        if #to_add > 0 then
+            pick_folder_and_add(to_add, project_root, function(folder, count)
+                if count > 0 then
+                    logger.get().info(string.format("★ Added %d file(s) to '%s'", count, folder))
                 end
-            end,
-        })
+                view_uproject.clear_selected()
+                view_uproject.refresh(tree)
+            end)
+        else
+            view_uproject.clear_selected()
+            view_uproject.refresh(tree)
+        end
+        return
     end
+
+    -- シングル
+    local node = tree:get_node()
+    if not node then return end
+
+    local path = sanitize_path(node.path)
+    if not path then return end
+
+    -- 既にお気に入り登録済みなら削除
+    local favorites = favorites_cache.load(project_root)
+    local norm_path = unl_path.normalize(path)
+    for _, item in ipairs(favorites) do
+        if not item.is_folder and unl_path.normalize(item.path) == norm_path then
+            local _, msg = favorites_cache.toggle(path, project_root)
+            logger.get().info("☆ " .. msg .. ": " .. vim.fn.fnamemodify(path, ":t"))
+            require("UNX.ui.view.uproject").refresh(tree)
+            return
+        end
+    end
+
+    -- 新規追加: フォルダ選択経由（シングルもマルチも同じパス）
+    local fname = vim.fn.fnamemodify(path, ":t")
+    pick_folder_and_add({ path }, project_root, function(folder, _)
+        logger.get().info(string.format("★ Added '%s' to '%s'", fname, folder))
+        require("UNX.ui.view.uproject").refresh(tree)
+    end)
 end
 
 function M.find_files_recursive(tree)
