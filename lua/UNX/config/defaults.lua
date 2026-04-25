@@ -69,6 +69,7 @@ M.defaults = {
             modified        = "[+]",
             recent          = "󱋡 ",
             favorites       = " ",
+            selected        = "●",
         },
         vcs_icons = {
             Modified  = "",

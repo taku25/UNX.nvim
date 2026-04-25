@@ -111,7 +111,8 @@ function M.prepare_node(node)
         and selected_paths[unl_path.normalize(node.path)]
 
     if is_selected then
-        line:append("● ", "UNXSelected")
+        local sel_icon = (conf.uproject and conf.uproject.icon and conf.uproject.icon.selected) or "●"
+        line:append(sel_icon .. " ", "UNXSelected")
         line:append(node.text, "UNXSelected")
     else
         line:append(node.text, name_hl)
