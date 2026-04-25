@@ -55,7 +55,7 @@ function M.prepare_node(node)
             icon_text = "󰚝 "
             icon_hl = "UNXDirectoryIcon"
         elseif uep_type == FavoritesView.ROOT_TYPE then
-            icon_text = " "
+            icon_text = (conf.uproject and conf.uproject.icon and conf.uproject.icon.favorites) or " "
             icon_hl = "Special"
         elseif uep_type == RecentView.ROOT_TYPE then
             icon_text = (conf.uproject and conf.uproject.icon and conf.uproject.icon.recent) or " "

@@ -53,11 +53,12 @@ M.defaults = {
             default_file    = "",
             modified        = "[+]",
             recent          = "󱋡 ",
+            favorites       = " ",
         },
         vcs_icons = {
             Modified  = "",
             Added     = "✚",
-            Deleted   = "✖",
+            Deleted   = "",
             Renamed   = "➜",
             Conflict  = "",
             Untracked = "★",
