@@ -25,14 +25,14 @@ local function prepare_node(node)
     -- 子を持つかどうか
     local has_children = node:has_children() or (node.children and #node.children > 0)
     
-    local ui_config = conf.insights_ui or {}
-    local icon_config = ui_config.icon or {}
+    local ui_config = conf.icons or {}
+    local icon_config = ui_config.insights or {}
     
     local default_open = ""      
     local default_closed = ""    
-    local default_group_hl = "UNXDirectoryIcon"
+    local default_group_hl = "UNXInsightsGroupIcon"
     local default_leaf_icon = "󰊕"
-    local default_leaf_hl = "Function"
+    local default_leaf_hl = "UNXInsightsLeafIcon"
     
     local icon = default_leaf_icon
     local icon_hl = default_leaf_hl
@@ -45,7 +45,7 @@ local function prepare_node(node)
         text_hl = "Title"
     elseif has_children then
         -- グループノード
-        icon_hl = icon_config.group_icon_hl or default_group_hl
+        icon_hl = default_group_hl
         text_hl = icon_hl
         
         if node:is_expanded() then
@@ -56,7 +56,7 @@ local function prepare_node(node)
     else
         -- リーフノード
         icon = icon_config.leaf_icon or default_leaf_icon
-        icon_hl = icon_config.leaf_icon_hl or default_leaf_hl
+        icon_hl = default_leaf_hl
         text_hl = icon_hl
     end
     

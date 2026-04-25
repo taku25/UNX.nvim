@@ -20,10 +20,10 @@ end
 
 -- Gitステータスのアイコンとハイライトを取得
 function M.get_vcs_icon_and_hl(status_code, config)
-    local uproj_conf = config.uproject or {}
-    
+    local uproj_conf = config.icons or {}
+
     -- ★変更: vcs_icons を優先し、なければ git_icons を見る (後方互換)
-    local icons = uproj_conf.vcs_icons or {}
+    local icons = uproj_conf.vcs or {}
 
     if status_code == "M" then return icons.Modified or "", "UNXVCSModified" end
     if status_code == "A" then return icons.Added or "✚", "UNXVCSAdded" end

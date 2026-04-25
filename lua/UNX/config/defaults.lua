@@ -38,29 +38,14 @@ M.defaults = {
         UNXVCSConflict   = { link = "ErrorMsg" },
         UNXVCSUntracked  = { link = "Function" },
         UNXVCSIgnored    = { link = "Comment" },
-        
-        UNXVCSFunction   = { link = "Function" },
 
-        UNXSelected      = { link = "DiagnosticOk" },
+        UNXVCSFunction      = { link = "Function" },
+        UNXSelected         = { link = "DiagnosticOk" },
+        UNXInsightsGroupIcon = { link = "UNXDirectoryIcon" },
+        UNXInsightsLeafIcon  = { link = "Function" },
     },
-    preview = {
-        auto             = true,   -- カーソル移動で自動プレビュー
-        debounce_ms      = 150,
-        max_file_size_kb = 512,
-        -- フロートウィンドウのサイズをエディタ全体に対する割合で指定
-        width_pct        = 0.90,   -- エディタ幅の 45%
-        height_pct       = 0.80,   -- エディタ高さの 80%
-        min_width        = 20,     -- 最小幅（列数）
-        min_height       = 5,      -- 最小高さ（行数）
-    },
-    multiselect = {
-        enabled = true,
-    },
-    uproject = {
-        show_hidden = false,
-        show_recent = true,
-        recent_max  = 15,
-        icon = {
+    icons = {
+        uproject = {
             expander_open   = "",
             expander_closed = "",
             folder_closed   = "",
@@ -71,8 +56,13 @@ M.defaults = {
             favorites       = " ",
             selected        = "●",
         },
-        vcs_icons = {
-            Modified  = "",
+        insights = {
+            group_icon_open = "",
+            group_icon_closed = "",
+            leaf_icon = "󰊕", 
+        },
+        vcs = {
+            Modified  = "",
             Added     = "✚",
             Deleted   = "",
             Renamed   = "➜",
@@ -80,6 +70,24 @@ M.defaults = {
             Untracked = "★",
             Ignored   = "◌",
         },
+    },
+    preview = {
+        auto             = true,   -- カーソル移動で自動プレビュー
+        debounce_ms      = 150,
+        max_file_size_kb = 512,
+        -- フロートウィンドウのサイズをエディタ全体に対する割合で指定
+        width_pct        = 0.90,
+        height_pct       = 0.80,
+        min_width        = 20,     -- 最小幅（列数）
+        min_height       = 5,      -- 最小高さ（行数）
+    },
+    multiselect = {
+        enabled = true,
+    },
+    uproject = {
+        show_hidden = false,
+        show_recent = true,
+        recent_max  = 15,
         ui = {
             right_components = {
                 "vcs_status",
@@ -95,15 +103,6 @@ M.defaults = {
             "neo-tree", "NvimTree", "TelescopePrompt", "fugitive", "lazy", "unx-explorer",
         },
     },
-    insights_ui = { 
-        icon = {
-            group_icon_open = "",
-            group_icon_closed = "",
-            group_icon_hl = "UNXDirectoryIcon",
-            leaf_icon = "󰊕", 
-            leaf_icon_hl = "Function",
-        },
-    },
     vcs = {
         git = { enabled = true },
         p4 = { enabled = true, auto_checkout = true },
@@ -111,7 +110,7 @@ M.defaults = {
         my_commits_limit = 10,
         repo_commits_limit = 10,
     },
-  symbols = {
+    symbols = {
         expand_groups = true, -- Functions, Propertiesなどを最初から展開する
     },
     keymaps = {
@@ -119,7 +118,7 @@ M.defaults = {
         open = { "<CR>", "o" },
         vsplit = "s",
         split = "i",
-        
+
         action_add = "a",
         action_new_file = "N",
         action_add_directory = "A",

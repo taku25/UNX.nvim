@@ -62,10 +62,10 @@ function M.prepare_node(node)
             icon_text = "󰚝 "
             icon_hl = "UNXDirectoryIcon"
         elseif uep_type == FavoritesView.ROOT_TYPE then
-            icon_text = (conf.uproject and conf.uproject.icon and conf.uproject.icon.favorites) or " "
+            icon_text = (conf.icons and conf.icons.uproject and conf.icons.uproject.favorites) or " "
             icon_hl = "Special"
         elseif uep_type == RecentView.ROOT_TYPE then
-            icon_text = (conf.uproject and conf.uproject.icon and conf.uproject.icon.recent) or " "
+            icon_text = (conf.icons and conf.icons.uproject and conf.icons.uproject.recent) or " "
             icon_hl = "Special"
         elseif uep_type == PendingView.ROOT_TYPE_PENDING then
             icon_text = " "
@@ -111,7 +111,7 @@ function M.prepare_node(node)
         and selected_paths[unl_path.normalize(node.path)]
 
     if is_selected then
-        local sel_icon = (conf.uproject and conf.uproject.icon and conf.uproject.icon.selected) or "●"
+        local sel_icon = (conf.icons and conf.icons.uproject and conf.icons.uproject.selected) or "●"
         line:append(sel_icon .. " ", "UNXSelected")
         line:append(node.text, "UNXSelected")
     else

@@ -8,7 +8,7 @@ return function(node, context, config)
     local opened = utils.get_opened_buffers_status()
     
     if path and opened[path] and opened[path].modified then
-        local icon = config.uproject.icon.modified or "[+] "
+        local icon = config.icons.uproject.modified or "[+] "
         return { text = icon, highlight = "UNXModifiedIcon" }
     end
     

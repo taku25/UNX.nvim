@@ -116,7 +116,7 @@ function M.apply_keymaps(bufnr, active_tree, conf)
             if not node or not node.path or node.type == "directory" then return end
             local added = view_uproject.toggle_selected(node.path)
             local fname = vim.fn.fnamemodify(node.path, ":t")
-            local sel_icon = (conf.uproject and conf.uproject.icon and conf.uproject.icon.selected) or "●"
+            local sel_icon = (conf.icons and conf.icons.uproject and conf.icons.uproject.selected) or "●"
             local icon = added and sel_icon or "○"
             local n = view_uproject.selected_count()
             logger.get().info(icon .. " " .. fname .. (n > 0 and ("  [" .. n .. " selected]") or ""))
