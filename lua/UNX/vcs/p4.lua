@@ -52,6 +52,24 @@ local function check_workspace(cwd, callback)
     end)
 end
 
+--- Override refresh to verify workspace before fetching P4 status.
+--- UNL.vcs.p4 caches availability per-path, but may have stale data from
+--- a previous P4-managed project. Always re-check with "p4 where" here.
+--- @param start_path string Project root
+--- @param on_complete function|nil
+--- @param logger_name string|nil
+function M.refresh(start_path, on_complete, logger_name)
+    check_workspace(start_path, function(available)
+        if not available then
+            -- Clear any stale P4 cache so get_changes() returns nothing
+            unl_p4.clear()
+            if on_complete then on_complete() end
+            return
+        end
+        unl_p4.refresh(start_path, on_complete, logger_name)
+    end)
+end
+
 --- Get current P4 user name
 --- @param cwd string
 --- @param callback function(name: string|nil)
