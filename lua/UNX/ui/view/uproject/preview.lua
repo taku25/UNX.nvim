@@ -38,8 +38,9 @@ local function get_or_create_buf()
     return buf
 end
 
---- explorer ウィンドウの右側にフロートを配置するオプションを計算する。
---- 右にスペースが足りない場合は nil を返す。
+--- explorer ウィンドウの隣にフロートを配置するオプションを計算する。
+--- UNX が右側にある場合は左側に、左側にある場合は右側に配置する。
+--- スペースが足りない場合は nil を返す。
 local function calc_float_opts(anchor_win)
     local ok, pos = pcall(vim.api.nvim_win_get_position, anchor_win)
     if not ok then return nil end
@@ -58,22 +59,34 @@ local function calc_float_opts(anchor_win)
     local min_width  = prev_conf.min_width  or 20
     local min_height = prev_conf.min_height or 5
 
-    -- 横: UNX 右端から画面右端までが利用可能領域
-    local area_col_start = anchor_col + anchor_w + 2
-    local available_w    = editor_w - area_col_start - 1
-
-    local float_w     = math.floor(available_w * width_pct)
-    -- 左右均等オフセット（余白を両端に振り分ける）
-    local h_offset    = math.floor((available_w - float_w) / 2)
-    local float_col   = area_col_start + h_offset
-
     -- 縦: Neovim 全体の実効高さを基準に中央配置
-    local float_h     = math.floor(editor_h * height_pct)
-    local float_row   = math.floor((editor_h - float_h) / 2)
+    local float_h   = math.floor(editor_h * height_pct)
+    local float_row = math.floor((editor_h - float_h) / 2)
 
-    if float_w < min_width or area_col_start >= editor_w - 5 then
+    -- 右側の利用可能領域
+    local right_col_start = anchor_col + anchor_w + 2
+    local available_right = editor_w - right_col_start - 1
+
+    -- 左側の利用可能領域
+    local available_left  = anchor_col - 2
+
+    local float_w, float_col
+
+    if available_right >= min_width then
+        -- UNX の右にスペースがある（左配置時）
+        float_w   = math.floor(available_right * width_pct)
+        local h_offset = math.floor((available_right - float_w) / 2)
+        float_col = right_col_start + h_offset
+    elseif available_left >= min_width then
+        -- UNX が右側にある → 左にプレビューを配置
+        float_w   = math.floor(available_left * width_pct)
+        local h_offset = math.floor((available_left - float_w) / 2)
+        float_col = h_offset
+    else
         return nil
     end
+
+    if float_w < min_width then return nil end
 
     return {
         relative  = "editor",
