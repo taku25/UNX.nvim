@@ -167,7 +167,7 @@ function M.apply_keymaps(bufnr, active_tree, conf)
     end
 end
 
-function M.on_node_action(tree_instance, builder_mod, expanded_state, save_state_fn)
+function M.on_node_action(tree_instance, builder_mod, expanded_state, save_state_fn, open_cmd)
     local node = tree_instance:get_node()
     if not node then return end
 
@@ -207,7 +207,7 @@ function M.on_node_action(tree_instance, builder_mod, expanded_state, save_state
         save_state_fn()
     else
         if node.path then
-            unl_open.safe({ file_path = node.path, open_cmd = "edit", plugin_name = "UNX", split_cmd = "vertical botright split" })
+            unl_open.safe({ file_path = node.path, open_cmd = open_cmd or "edit", plugin_name = "UNX", split_cmd = "vertical botright split" })
         end
     end
 end

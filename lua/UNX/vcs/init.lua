@@ -296,6 +296,32 @@ function M.get_my_log(cwd, limit, callback)
     end
 end
 
+--- コミット時点のファイル内容を取得する
+--- @param cwd string プロジェクトルート
+--- @param commit table コミットオブジェクト（hash, vcs フィールド必須）
+--- @param file_data table ファイルデータ（full_rel_path, depot_path フィールド）
+--- @param callback function(content: string|nil)
+function M.get_file_at_commit(cwd, commit, file_data, callback)
+    local conf = get_config()
+    local vcs_name = commit.vcs
+
+    for _, provider in ipairs(providers) do
+        if provider.name == vcs_name then
+            local cfg = conf[provider.name]
+            if cfg and cfg.enabled ~= false and type(provider.module.get_file_at_commit) == "function" then
+                -- P4 は depot_path、Git は full_rel_path（git root 相対）を渡す
+                local path_arg = (vcs_name == "p4")
+                    and (file_data.depot_path or file_data.full_rel_path or file_data.path)
+                    or  (file_data.full_rel_path or file_data.path or "")
+                provider.module.get_file_at_commit(cwd, commit.hash, path_arg, callback)
+                return
+            end
+        end
+    end
+
+    callback(nil)
+end
+
 --- コミットの変更ファイルリストを取得する
 --- @param cwd string プロジェクトルート
 --- @param commit table コミットオブジェクト（hashとvcsフィールド必須）

@@ -153,6 +153,51 @@ local function apply_buffer_keymaps(bufnr, tab_key, is_sub_view)
     for _, key in ipairs(close_keys) do
         vim.keymap.set("n", key, function() M.close() end, opts)
     end
+
+    -- vsplit / split open
+    local function make_split_action(split_fn_name)
+        return function()
+            local tab_state = ui.tabs[tab_key]
+            if not tab_state then return end
+            local target_tree = is_sub_view and (tab_state.sub and tab_state.sub.tree) or tab_state.tree
+            local view_mod = is_sub_view and TAB_CONFIG[tab_key].sub_view and TAB_CONFIG[tab_key].sub_view.view_mod
+                          or TAB_CONFIG[tab_key].view_mod
+            if not view_mod or not target_tree then return end
+            if type(view_mod[split_fn_name]) == "function" then
+                view_mod[split_fn_name](target_tree)
+            elseif type(view_mod.on_node_action) == "function" then
+                view_mod.on_node_action(target_tree, nil, nil)
+            end
+        end
+    end
+
+    local vsplit_key = conf.keymaps.vsplit
+    if vsplit_key then
+        vim.keymap.set("n", vsplit_key, make_split_action("on_node_vsplit"), opts)
+    end
+    local split_key = conf.keymaps.split
+    if split_key then
+        vim.keymap.set("n", split_key, make_split_action("on_node_split"), opts)
+    end
+
+    -- g? ヘルプ
+    local help_key = conf.keymaps.action_help or "g?"
+    vim.keymap.set("n", help_key, function()
+        require("UNX.ui.view.action.help").show()
+    end, opts)
+
+    -- VCS タブ専用: D でコミット diff
+    if tab_key == "vcs" then
+        local commit_diff_key = conf.keymaps.action_commit_diff or "D"
+        vim.keymap.set("n", commit_diff_key, function()
+            local tab_state = ui.tabs[tab_key]
+            if not tab_state then return end
+            local target_tree = is_sub_view and (tab_state.sub and tab_state.sub.tree) or tab_state.tree
+            if target_tree then
+                require("UNX.ui.view.action.commit_diff").diff(target_tree)
+            end
+        end, opts)
+    end
 end
 
 local function update_winbars()

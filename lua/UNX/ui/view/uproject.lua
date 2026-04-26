@@ -165,6 +165,14 @@ function M.on_node_action(tree_instance)
     handler.on_node_action(tree_instance, builder, expanded_state, save_tree_state)
 end
 
+function M.on_node_vsplit(tree_instance)
+    handler.on_node_action(tree_instance, builder, expanded_state, save_tree_state, "vsplit")
+end
+
+function M.on_node_split(tree_instance)
+    handler.on_node_action(tree_instance, builder, expanded_state, save_tree_state, "split")
+end
+
 function M.ensure_children_loaded(tree, node)
     if not node:has_children() then builder.lazy_load_children(tree, node) end
 end

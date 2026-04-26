@@ -149,6 +149,18 @@ function M.get_log(cwd, limit, author, callback)
     end)
 end
 
+--- Get file content at a specific changelist via depot path
+--- @param cwd string Root directory
+--- @param changelist string Changelist number
+--- @param depot_path string Full depot path (//depot/...)
+--- @param callback function(content: string|nil)
+function M.get_file_at_commit(cwd, changelist, depot_path, callback)
+    if not depot_path or depot_path == "" then return callback(nil) end
+    spawn_p4({ "print", "-q", depot_path .. "@" .. changelist }, cwd, function(content)
+        callback(content)
+    end)
+end
+
 --- Get changed files for a P4 changelist
 --- @param cwd string Root directory
 --- @param changelist string Changelist number
@@ -163,10 +175,17 @@ function M.get_commit_files(cwd, changelist, callback)
             if line:match("^Affected files") then
                 in_affected = true
             elseif in_affected then
-                local depot_path = line:match("^%.%.%.%s+(//[^#]+)")
-                if depot_path then
-                    local short = depot_path:match("//[^/]+/(.+)$") or depot_path
-                    table.insert(files, short)
+                local dp = line:match("^%.%.%.%s+(//[^#]+)")
+                if dp then
+                    dp = vim.fn.trim(dp)
+                    local short = dp:match("//[^/]+/(.+)$") or dp
+                    table.insert(files, {
+                        type        = "file",
+                        path        = short,
+                        name        = vim.fn.fnamemodify(short, ":t"),
+                        full_rel_path = short,
+                        depot_path  = dp,
+                    })
                 end
             end
         end

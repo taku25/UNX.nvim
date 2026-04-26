@@ -173,7 +173,7 @@ function M.on_node_action(tree)
                         text = f.name,
                         id = "repo_file_" .. node.data.hash .. "_" .. f.full_rel_path,
                         type = "file",
-                        data = { path = f.rel_path, full_rel_path = f.full_rel_path, commit = node.data },
+                        data = { path = f.rel_path, full_rel_path = f.full_rel_path, depot_path = f.depot_path, commit = node.data },
                     }))
                 end
                 
@@ -191,7 +191,7 @@ function M.on_node_action(tree)
                     text = item.name,
                     id = "repo_file_" .. node.data.hash .. "_" .. item.path,
                     type = "file",
-                    data = { path = item.path, full_rel_path = item.full_rel_path, commit = node.data },
+                    data = { path = item.path, full_rel_path = item.full_rel_path, depot_path = item.depot_path, commit = node.data },
                 }))
             end
         end

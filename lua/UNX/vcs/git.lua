@@ -107,6 +107,22 @@ function M.get_log(cwd, limit, author, callback)
     end)
 end
 
+--- Get file content at a specific commit
+--- @param cwd string Root directory
+--- @param commit_hash string Commit hash
+--- @param rel_path string Path relative to git root
+--- @param callback function(content: string|nil)
+function M.get_file_at_commit(cwd, commit_hash, rel_path, callback)
+    find_git_root(cwd, function(git_root)
+        if not git_root then return callback(nil) end
+        -- Normalise to forward slashes (git requires them even on Windows)
+        local fwd_path = rel_path:gsub("\\", "/")
+        spawn_git({ "show", commit_hash .. ":" .. fwd_path }, git_root, function(content)
+            callback(content)
+        end)
+    end)
+end
+
 --- Get changed files for a commit (structured for submodule grouping)
 --- @param cwd string Root directory
 --- @param commit_hash string Commit hash
