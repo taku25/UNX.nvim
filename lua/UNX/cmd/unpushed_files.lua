@@ -60,8 +60,8 @@ function M.execute(opts)
         conf = conf,
         preview_enabled = true,
         on_submit = function(selection)
-          if selection and selection.value then
-            unl_buf_open.safe({ file_path = selection.value, open_cmd = "edit", plugin_name = "UNX" })
+          if selection then
+            unl_buf_open.safe({ file_path = selection, open_cmd = "edit", plugin_name = "UNX" })
           end
         end,
       })

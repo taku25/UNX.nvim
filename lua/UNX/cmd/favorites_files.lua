@@ -62,7 +62,7 @@ function M.execute(opts)
 
       on_submit = function(selection)
         if selection then
-          unl_buf_open.safe({ file_path = selection.value, open_cmd = "edit", plugin_name = "UNX" })
+          unl_buf_open.safe({ file_path = selection, open_cmd = "edit", plugin_name = "UNX" })
         end
       end,
     })
