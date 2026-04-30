@@ -51,14 +51,49 @@ function M.add_folder(tree)
 end
 
 function M.move_item(tree)
+    local ctx = ctx_uproject.get()
+    local project_root = ctx.project_root
+    if not project_root then return end
+
+    local view_uproject = require("UNX.ui.view.uproject")
+    local selected = view_uproject.get_selected_list()
+
+    -- マルチセレクト: 選択中のアイテムをまとめて移動
+    if #selected > 0 then
+        local folders = favorites_cache.get_folders(project_root)
+        local items = {}
+        for _, f in ipairs(folders) do
+            table.insert(items, { label = f, value = f })
+        end
+
+        unl_picker.open({
+            kind = "unx_favorites_move",
+            title = string.format("Move %d item(s) to folder", #selected),
+            items = items,
+            conf = unx_config.get(),
+            preview_enabled = false,
+            on_submit = function(selection)
+                if selection then
+                    local parts = vim.split(selection, "/", { plain = true })
+                    local choice = parts[#parts]
+                    for _, path in ipairs(selected) do
+                        favorites_cache.move_to_folder(path, choice, project_root, false)
+                    end
+                    vim.notify(string.format("Moved %d item(s) to %s", #selected, choice), vim.log.levels.INFO)
+                    view_uproject.clear_selected()
+                    local explorer_ui = require("UNX.ui.explorer")
+                    explorer_ui.refresh()
+                end
+            end,
+        })
+        return
+    end
+
+    -- シングル（既存ロジック）
     local node = tree:get_node()
     if not node or not node.extra or (not node.extra.is_favorite_item and not node.extra.is_favorite_folder) then
         return vim.notify("Select a favorite item or folder to move", vim.log.levels.WARN)
     end
-
-    local ctx = ctx_uproject.get()
-    local project_root = ctx.project_root
-    if not project_root then return end
 
     local folders = favorites_cache.get_folders(project_root)
     local items = {}
@@ -68,7 +103,7 @@ function M.move_item(tree)
             table.insert(items, { label = f, value = f })
         end
     end
-    
+
     unl_picker.open({
         kind = "unx_favorites_move",
         title = string.format("Move '%s' to folder", node.text),
