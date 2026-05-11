@@ -75,13 +75,10 @@ function M.execute()
             preview_enabled = false,
             on_submit = function(selection)
                 if selection then
-                    local choice_path = selection
-                    local parts = vim.split(choice_path, "/", { plain = true })
-                    local choice = parts[#parts] -- 最後の名前を取得
-
-                    local added, msg = favorites_cache.toggle(path, project_root, choice)
+                    -- selection is the full folder path (e.g. "Root/B/A" or "Default")
+                    local added, msg = favorites_cache.toggle(path, project_root, selection)
                     local icon = added and "★ " or "☆ "
-                    vim.notify(string.format("[UNX] %s%s (%s): %s", icon, msg, choice_path, vim.fn.fnamemodify(path, ":t")), vim.log.levels.INFO)
+                    vim.notify(string.format("[UNX] %s%s (%s): %s", icon, msg, selection, vim.fn.fnamemodify(path, ":t")), vim.log.levels.INFO)
                     refresh_ui()
                 end
             end,
