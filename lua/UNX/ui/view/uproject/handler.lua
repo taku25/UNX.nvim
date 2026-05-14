@@ -147,15 +147,17 @@ function M.apply_keymaps(bufnr, active_tree, conf)
                 preview_mod.schedule_show(node.path, anchor_win)
             end,
         })
-
-        -- UNX バッファを離れたらプレビューを閉じる
-        vim.api.nvim_create_autocmd("BufLeave", {
-            buffer = bufnr,
-            callback = function()
-                preview_mod.close()
-            end,
-        })
     end
+
+    -- UNX ウィンドウを離れたら常にプレビューを閉じる
+    -- BufLeave は同一バッファへの移動では発火しないため WinLeave を使用
+    -- auto モードの有無・手動 p トグルに関わらず登録する
+    vim.api.nvim_create_autocmd("WinLeave", {
+        buffer = bufnr,
+        callback = function()
+            preview_mod.close()
+        end,
+    })
 
     if keys.custom then
         for key, func in pairs(keys.custom) do
