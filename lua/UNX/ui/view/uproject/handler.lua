@@ -8,6 +8,7 @@ local file_actions = require("UNX.ui.view.action.files")
 local diff_action = require("UNX.ui.view.action.diff")
 local filter_action = require("UNX.ui.view.action.filter")
 local preview_mod = require("UNX.ui.view.uproject.preview")
+local history_mod = require("UNX.ui.view.uproject.history")
 local logger = require("UNX.logger")
 
 local PendingView = require("UNX.ui.view.uproject.pending")
@@ -138,8 +139,11 @@ function M.apply_keymaps(bufnr, active_tree, conf)
         vim.api.nvim_create_autocmd("CursorMoved", {
             buffer = bufnr,
             callback = function()
-                if not preview_mod.is_enabled() then return end
+                -- 履歴に現在ノードを記録
                 local node = active_tree:get_node()
+                if node then history_mod.push(bufnr, node:get_id()) end
+
+                if not preview_mod.is_enabled() then return end
                 if not node or not node.path or node.type == "directory" then
                     preview_mod.close(); return
                 end
@@ -147,6 +151,27 @@ function M.apply_keymaps(bufnr, active_tree, conf)
                 preview_mod.schedule_show(node.path, anchor_win)
             end,
         })
+    end
+
+    -- go back: <BS> で前のノードへ
+    if keys.action_go_back then
+        vim.keymap.set("n", keys.action_go_back, function()
+            local current = active_tree:get_node()
+            local current_id = current and current:get_id() or nil
+            local prev_id = history_mod.pop(bufnr, current_id)
+            if not prev_id then
+                vim.notify("UNX: no navigation history.", vim.log.levels.INFO)
+                return
+            end
+            -- ノードを検索してカーソルを移動
+            local found_node = active_tree:get_node(prev_id)
+            if found_node then
+                active_tree:get_node(prev_id):select()
+                active_tree:render()
+            else
+                vim.notify("UNX: previous node is no longer visible.", vim.log.levels.INFO)
+            end
+        end, map_opts)
     end
 
     -- UNX ウィンドウを離れたら常にプレビューを閉じる

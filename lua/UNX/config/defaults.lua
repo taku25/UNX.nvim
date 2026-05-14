@@ -141,6 +141,7 @@ M.defaults = {
         action_commit_diff = "D",
         action_help = "g?",
         action_open_in_ide = "<C-o>",
+        action_go_back = "<BS>",
         custom = {},
     },
 }
