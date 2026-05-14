@@ -142,6 +142,7 @@ M.defaults = {
         action_help = "g?",
         action_open_in_ide = "<C-o>",
         action_go_back = "<BS>",
+        action_toggle_hierarchy = "H",
         custom = {},
     },
 }

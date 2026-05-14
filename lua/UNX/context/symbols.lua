@@ -11,7 +11,8 @@ local default_state = {
     auto_update = true,
     filter_mode = "all",
     class_name = "",
-    show_parents = false, -- ★追加: デフォルトはOFF（高速モード）
+    show_parents = false,
+    show_hierarchy = false, -- クラス階層ビューモード
 }
 
 local function get_store_handle()
@@ -38,9 +39,11 @@ function M.get()
         handle:set(DATA_KEY, data)
     end
     
-    -- ★追加: 保存データにキーがない場合の安全策
     if data.show_parents == nil then
         data.show_parents = false
+    end
+    if data.show_hierarchy == nil then
+        data.show_hierarchy = false
     end
 
     return data
@@ -54,7 +57,8 @@ function M.set(data)
             auto_update = data.auto_update,
             filter_mode = data.filter_mode,
             class_name = data.class_name,
-            show_parents = data.show_parents, -- ★追加: 保存対象に追加
+            show_parents = data.show_parents,
+            show_hierarchy = data.show_hierarchy,
         }
         handle:set(DATA_KEY, clean_data)
     end
