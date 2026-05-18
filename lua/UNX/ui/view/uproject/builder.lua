@@ -5,6 +5,7 @@ local unl_finder = require("UNL.finder")
 local unl_path = require("UNL.path")
 local unx_vcs = require("UNX.vcs")
 local ctx_uproject = require("UNX.context.uproject")
+local fuzzy = require("UNX.util.fuzzy")
 local fs = require("vim.fs")
 
 local PendingView = require("UNX.ui.view.uproject.pending")
@@ -145,8 +146,10 @@ function M.fetch_root_data(tree_instance, expanded_state, skip_vcs_refresh)
             local filtered_favs = {}
             for _, item in ipairs(fav_items) do
                 if not item.is_folder and item.path then
-                    local p_match = item.path:lower():find(filter:lower(), 1, true)
-                    local n_match = (item.name and item.name:lower():find(filter:lower(), 1, true))
+                    -- ファイル名またはdisplay名のみでfuzzy match（フルパスは対象外）
+                    local basename = vim.fn.fnamemodify(item.path, ":t")
+                    local p_match = fuzzy.match(basename, filter)
+                    local n_match = item.name and fuzzy.match(item.name, filter)
                     if p_match or n_match then table.insert(filtered_favs, item) end
                 end
             end
@@ -161,7 +164,12 @@ function M.fetch_root_data(tree_instance, expanded_state, skip_vcs_refresh)
 
             local changes = unx_vcs.get_aggregated_changes()
             local filtered_changes = {}
-            for _, item in ipairs(changes) do if item.path:lower():find(filter:lower(), 1, true) then table.insert(filtered_changes, item) end end
+            -- ファイル名（basename）のみでfuzzy match（フルパスはディレクトリ名が誤マッチするため使用しない）
+            for _, item in ipairs(changes) do
+                if fuzzy.match(vim.fn.fnamemodify(item.path, ":t"), filter) then
+                    table.insert(filtered_changes, item)
+                end
+            end
             if #filtered_changes > 0 then
                 local change_children = {}
                 for _, item in ipairs(filtered_changes) do
@@ -175,9 +183,11 @@ function M.fetch_root_data(tree_instance, expanded_state, skip_vcs_refresh)
                 local filtered_items = {}
                 local norm_proj_root = unl_path.normalize(project_info.root):lower()
                 for _, item in ipairs(items) do
-                    -- プロジェクトルート配下のファイルのみを表示する
+                    -- プロジェクトルート配下かつfuzzyマッチのみ表示する
                     local norm_item_path = unl_path.normalize(item.path):lower()
-                    if vim.startswith(norm_item_path, norm_proj_root .. "/") then
+                    if vim.startswith(norm_item_path, norm_proj_root .. "/")
+                        and fuzzy.match(item.filename or "", filter)
+                    then
                         table.insert(filtered_items, { path = item.path, display = item.filename, type = "file" })
                     end
                 end
