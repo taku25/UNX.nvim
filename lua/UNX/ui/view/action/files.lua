@@ -485,6 +485,24 @@ function M.find_files_recursive(tree)
     end)
 end
 
+function M.copy_path(tree)
+    local node = tree:get_node()
+    if not node then return end
+
+    local path = sanitize_path(node.path)
+    if not path then return end
+
+    -- forward slash 統一・連続スラッシュ正規化 (先頭 // UNC は保持)
+    local abs = vim.fn.fnamemodify(path, ":p"):gsub("\\", "/")
+    abs = abs:gsub("(.)//+", "%1/")
+    -- 末尾スラッシュ除去 (ディレクトリノードへの対応)
+    if abs:len() > 3 and abs:sub(-1) == "/" then abs = abs:sub(1, -2) end
+
+    vim.fn.setreg("+", abs)
+    vim.fn.setreg('"', abs)
+    logger.get().info("Copied path: " .. abs)
+end
+
 function M.open_in_ide(tree)
     local node = tree:get_node()
     if not node then return end

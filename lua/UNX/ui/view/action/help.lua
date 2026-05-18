@@ -19,6 +19,7 @@ local KEY_DEFS = {
     { key_conf = "action_delete",         fallback = "d",         desc = "Delete file/directory" },
     { key_conf = "action_rename",         fallback = "r",         desc = "Rename" },
     { key_conf = "action_move",           fallback = "m",         desc = "Move" },
+    { key_conf = "action_copy_path",     fallback = "yy",        desc = "Copy absolute path" },
     { key_conf = "action_find_files",     fallback = "f",         desc = "Find files (recursive)" },
     { key_conf = "action_open_in_ide",    fallback = "<C-o>",     desc = "Open in IDE" },
 

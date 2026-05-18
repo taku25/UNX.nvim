@@ -81,6 +81,7 @@ function M.apply_keymaps(bufnr, active_tree, conf)
         action_force_refresh = file_actions.refresh,
         action_diff = diff_action.diff,
         action_open_in_ide = file_actions.open_in_ide,
+        action_copy_path = file_actions.copy_path,
     }
 
     for key_id, fn in pairs(mappings) do
