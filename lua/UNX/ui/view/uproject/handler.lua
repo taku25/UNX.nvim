@@ -7,6 +7,7 @@ local cache = require("UNX.cache")
 local file_actions = require("UNX.ui.view.action.files")
 local diff_action = require("UNX.ui.view.action.diff")
 local filter_action = require("UNX.ui.view.action.filter")
+local pair_action = require("UNX.ui.view.action.pair")
 local preview_mod = require("UNX.ui.view.uproject.preview")
 local history_mod = require("UNX.ui.view.uproject.history")
 local logger = require("UNX.logger")
@@ -82,6 +83,7 @@ function M.apply_keymaps(bufnr, active_tree, conf)
         action_diff = diff_action.diff,
         action_open_in_ide = file_actions.open_in_ide,
         action_copy_path = file_actions.copy_path,
+        action_goto_pair = pair_action.goto_pair,
     }
 
     for key_id, fn in pairs(mappings) do
