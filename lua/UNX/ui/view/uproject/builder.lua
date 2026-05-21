@@ -180,30 +180,48 @@ function M.fetch_root_data(tree_instance, expanded_state, skip_vcs_refresh)
             end
 
             if items then
-                local filtered_items = {}
+                local filtered_game = {}
+                local filtered_engine = {}
                 local norm_proj_root = unl_path.normalize(project_info.root):lower()
+                local norm_engine_root = engine_root and unl_path.normalize(engine_root):lower() or nil
                 for _, item in ipairs(items) do
-                    -- プロジェクトルート配下かつfuzzyマッチのみ表示する
+                    if not fuzzy.match(item.filename or "", filter) then goto continue end
                     local norm_item_path = unl_path.normalize(item.path):lower()
-                    if vim.startswith(norm_item_path, norm_proj_root .. "/")
-                        and fuzzy.match(item.filename or "", filter)
-                    then
-                        table.insert(filtered_items, { path = item.path, display = item.filename, type = "file" })
+                    if vim.startswith(norm_item_path, norm_proj_root .. "/") then
+                        table.insert(filtered_game, { path = item.path, display = item.filename, type = "file" })
+                    elseif norm_engine_root and vim.startswith(norm_item_path, norm_engine_root .. "/") then
+                        table.insert(filtered_engine, { path = item.path, display = item.filename, type = "file" })
                     end
+                    ::continue::
                 end
-                if #filtered_items > 0 then
-                    local hierarchy_nodes = paths_to_tree_nodes(filtered_items, project_info.root)
+
+                if #filtered_game > 0 then
+                    local hierarchy_nodes = paths_to_tree_nodes(filtered_game, project_info.root)
                     local norm_root = unl_path.normalize(project_info.root)
-                    local proj_root = Tree.Node({ 
-                        text = vim.fn.fnamemodify(project_info.root, ":t") .. " (Results)", 
-                        id = "search_results_" .. norm_root, 
-                        path = project_info.root, 
-                        type = "directory", 
-                        _has_children = true, 
-                        extra = { uep_type = "fs" } 
+                    local proj_root = Tree.Node({
+                        text = vim.fn.fnamemodify(project_info.root, ":t") .. " (Results)",
+                        id = "search_results_" .. norm_root,
+                        path = project_info.root,
+                        type = "directory", _has_children = true, extra = { uep_type = "fs" }
                     }, hierarchy_nodes)
                     proj_root:expand(); table.insert(nodes, proj_root)
-                else table.insert(nodes, Tree.Node({ text = "No matching files in project.", kind = "Info", id = "no_match_main" })) end
+                end
+
+                if #filtered_engine > 0 then
+                    local hierarchy_nodes = paths_to_tree_nodes(filtered_engine, engine_root)
+                    local norm_eng = unl_path.normalize(engine_root)
+                    local eng_root = Tree.Node({
+                        text = "Engine (Results)",
+                        id = "search_results_engine_" .. norm_eng,
+                        path = engine_root,
+                        type = "directory", _has_children = true, extra = { uep_type = "fs" }
+                    }, hierarchy_nodes)
+                    eng_root:expand(); table.insert(nodes, eng_root)
+                end
+
+                if #filtered_game == 0 and #filtered_engine == 0 then
+                    table.insert(nodes, Tree.Node({ text = "No matching files.", kind = "Info", id = "no_match_main" }))
+                end
             else table.insert(nodes, Tree.Node({ text = "Failed to fetch file list from Server.", kind = "Info", id = "error" })) end
             
             vim.schedule(function()
