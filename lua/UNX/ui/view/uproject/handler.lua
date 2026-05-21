@@ -94,6 +94,47 @@ function M.apply_keymaps(bufnr, active_tree, conf)
 
     vim.keymap.set("n", "/", function() filter_action.start_filter(active_tree) end, map_opts)
 
+    -- 親ディレクトリへ移動
+    vim.keymap.set("n", "K", function()
+        local node = active_tree:get_node()
+        if not node then return end
+        local parent_id = node:get_parent_id()
+        if not parent_id then return end
+        local _, linenr = active_tree:get_node(parent_id)
+        if linenr then
+            local winid = vim.fn.win_findbuf(active_tree.bufnr)[1]
+            if winid then vim.api.nvim_win_set_cursor(winid, { linenr, 0 }) end
+        end
+    end, map_opts)
+
+    -- 現在階層を閉じて親へ登る（連打で階層を登り続ける）
+    vim.keymap.set("n", "<C-k>", function()
+        local node = active_tree:get_node()
+        if not node then return end
+
+        -- 展開済みディレクトリなら自身を閉じてカーソルはそのまま
+        if node:is_expanded() then
+            node:collapse()
+            active_tree:render()
+            return
+        end
+
+        -- それ以外（ファイル or 閉じたディレクトリ）→ 親へ移動して親を閉じる
+        local parent_id = node:get_parent_id()
+        if not parent_id then return end
+        local parent_node, linenr = active_tree:get_node(parent_id)
+        if parent_node then
+            parent_node:collapse()
+            active_tree:render()
+            -- render後に行番号を再取得（renderで変わる可能性があるため）
+            local _, new_linenr = active_tree:get_node(parent_id)
+            local winid = vim.fn.win_findbuf(active_tree.bufnr)[1]
+            if winid and new_linenr then
+                vim.api.nvim_win_set_cursor(winid, { new_linenr, 0 })
+            end
+        end
+    end, map_opts)
+
     -- プレビュー: p キーでトグル、auto モードでは CursorMoved で自動表示
     if keys.action_preview_toggle then
         vim.keymap.set("n", keys.action_preview_toggle, function()

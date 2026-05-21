@@ -115,7 +115,7 @@ M.defaults = {
     },
     keymaps = {
         close = { "q" },
-        open = { "<CR>", "o" },
+        open = { "<CR>", "o", "L" },
         vsplit = "s",
         split = "i",
 
